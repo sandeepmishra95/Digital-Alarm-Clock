@@ -1,0 +1,353 @@
+C51 COMPILER V9.54   LCD_4_BIT                                                             12/20/2015 20:35:44 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE LCD_4_BIT
+OBJECT MODULE PLACED IN .\Objects\lcd_4_bit.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE lcd_4_bit.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listings
+                    -\lcd_4_bit.lst) TABS(2) OBJECT(.\Objects\lcd_4_bit.obj)
+
+line level    source
+
+   1          /*----------------------------------------------------------------------------------
+   2                                  8051 LCD library for 4-bit mode
+   3          Filename: lcd_4_bit.c
+   4          Controller: P89V51RD2/89c51(8051 family)
+   5          Oscillator: 11.0592 MHz
+   6          Author: XploreLabz
+   7          website: www.xplorelabz.com
+   8          
+   9           ----------------------------------------------------------------------------------
+  10          Note:
+  11           1.Pin connection for LCD display in 4-bit mode.
+  12           2.By default the LCD is connected to Port0.
+  13           3.The code can be modified to connect the LCD to any of the PORTs by changing the
+  14             "#define databus P0".
+  15                      _______________________________________________
+  16                     |                                               |
+  17                     |              16*2 lcd  Display                |
+  18                     |                4-bit Mode                     |
+  19                     |                                               |
+  20                     |                                               |
+  21                     |                                               |
+  22                     |         D7 D6 D5 D4 D3 D2 D1 D0     EN RW RS  |
+  23                      -----------------------------------------------
+  24                               |  |  |  |                  |  |  |
+  25                               |  |  |  |          |  |  |
+  26                               |  |  |  |                |  |  |___P0.2
+  27                     |  |  |  |                |  |______P0.1
+  28                               |  |  |  |                  |_________P0.0
+  29                     |  |  |  |
+  30                     |  |  |  |____________________________P0.4
+  31                     |  |  |_______________________________P0.5
+  32                     |  |__________________________________P0.6
+  33                     |_____________________________________P0.7
+  34          
+  35          
+  36          ----------------------------------------------------------------------------------*/
+  37          
+  38          
+  39          #include<at89x51.h>
+  40          #include "delay.h"
+  41          #include "lcd.h"
+  42          
+  43          #define databus P0       // LCD databus connected to PORT1
+  44          
+  45          sbit rs= databus^0;    // Register select pin connected to P0.2
+  46          sbit rw= databus^1;    // Read Write pin connected to P0.1
+  47          sbit en= databus^2;    // Enable pin connected to P0.0
+  48          
+  49          
+  50          
+  51          /* 16x2 LCD Specification */
+  52          #define LCDMaxLines 2
+  53          #define LCDMaxChars 16
+  54          #define LineOne 0x80
+C51 COMPILER V9.54   LCD_4_BIT                                                             12/20/2015 20:35:44 PAGE 2   
+
+  55          #define LineTwo 0xc0
+  56          
+  57          #define BlankSpace ' '
+  58          
+  59          
+  60          /*----------------------------------------------------------------------------------
+  61                               void LCD_EnablePulse()
+  62           ----------------------------------------------------------------------------------
+  63           * Function name: LCD_EnablePulse()
+  64           * I/P Arguments: none.
+  65           * Return value : none
+  66           * description  :This function is used to provide a enable pulse to latch data/command 
+  67           LCD, since it is used frequently making it a function.
+  68          ----------------------------------------------------------------------------------*/
+  69          
+  70          void LCD_EnablePulse()
+  71          {
+  72   1       /* refer timing diagram on page 26 HDD44780 for more
+  73   1       It is observed that 0 to 1 and 1 to 0 transistions for 8051 
+  74   1       are not sharp, hence enable pulse width is kept higher*/
+  75   1       en = 0; //ensure low
+  76   1       en=1;
+  77   1       delay_us(100); // pulse width > 230 nsec
+  78   1       en = 0;
+  79   1       delay_us(10); // hold time >10nsec
+  80   1      }
+  81          
+  82          
+  83          /*----------------------------------------------------------------------------------
+  84                                   void LCD_Init()
+  85           ----------------------------------------------------------------------------------
+  86           * Function name:  LCD_Init()
+  87           * I/P Arguments: none.
+  88           * Return value : none
+  89          
+  90           * description  :This function is used to initialize the lcd in 4-bit mode
+  91          
+  92          ----------------------------------------------------------------------------------*/
+  93          void LCD_Init()
+  94          {
+  95   1          databus = 0x00; //output
+  96   1          rs=0;
+  97   1          rw=0;
+  98   1      
+  99   1          databus = 0x30;
+ 100   1        LCD_EnablePulse();
+ 101   1        delay_ms(100);//recommendded >4.1 ms
+ 102   1        
+ 103   1        databus = 0x30;
+ 104   1        LCD_EnablePulse();
+ 105   1        delay_ms(1); //>100us
+ 106   1        
+ 107   1        databus = 0x30;
+ 108   1        LCD_EnablePulse();
+ 109   1        delay_ms(1); //>100us
+ 110   1      
+ 111   1        databus = 0x20;
+ 112   1          LCD_EnablePulse();
+ 113   1        delay_us(200); //>100us
+ 114   1        
+ 115   1        //reset sequence ends here
+ 116   1        
+C51 COMPILER V9.54   LCD_4_BIT                                                             12/20/2015 20:35:44 PAGE 3   
+
+ 117   1         LCD_CmdWrite(0x28);   //Initilize the LCD in 4bit Mode
+ 118   1         LCD_CmdWrite(0x0E);  // Display ON cursor ON
+ 119   1         LCD_CmdWrite(0x01);  // Clear the LCD
+ 120   1         LCD_CmdWrite(0x80);  // Move the Cursor to First line First Position
+ 121   1      
+ 122   1      }
+ 123          
+ 124          
+ 125          
+ 126          
+ 127          /*---------------------------------------------------------------------------------
+ 128                                   void LCD_Clear()
+ 129           ----------------------------------------------------------------------------------
+ 130           * I/P Arguments: none.
+ 131           * Return value : none
+ 132          
+ 133           * description  :This function clears the LCD and moves the cursor to first Position
+ 134          
+ 135          -----------------------------------------------------------------------------------*/
+ 136          void LCD_Clear()
+ 137          {
+ 138   1         LCD_CmdWrite(0x01);  // Clear the LCD and go to First line First Position
+ 139   1      }
+ 140          
+ 141          
+ 142          
+ 143          
+ 144          
+ 145          /*---------------------------------------------------------------------------------
+ 146                                   void LCD_GoToLineOne()
+ 147           ----------------------------------------------------------------------------------
+ 148           * I/P Arguments: none.
+ 149           * Return value : none
+ 150          
+ 151           * description  :This function moves the Cursor to First line First Position
+ 152          
+ 153          -----------------------------------------------------------------------------------*/
+ 154          void LCD_GoToLineOne()
+ 155          {
+ 156   1         LCD_CmdWrite(LineOne); // Move the Cursor to First line First Position
+ 157   1      }
+ 158          
+ 159          
+ 160          
+ 161          
+ 162          /*---------------------------------------------------------------------------------
+ 163                                   void LCD_GoToLineTwo()
+ 164           ----------------------------------------------------------------------------------
+ 165           * I/P Arguments: none.
+ 166           * Return value : none
+ 167          
+ 168           * description  :This function moves the Cursor to Second line First Position
+ 169          
+ 170          -----------------------------------------------------------------------------------*/
+ 171          void LCD_GoToLineTwo()
+ 172          {
+ 173   1         LCD_CmdWrite(LineTwo); // Move the Cursor to Second line First Position
+ 174   1      }
+ 175          
+ 176          
+ 177          
+ 178          /*----------------------------------------------------------------------------------
+C51 COMPILER V9.54   LCD_4_BIT                                                             12/20/2015 20:35:44 PAGE 4   
+
+ 179                                 void LCD_CmdWrite( char cmd)
+ 180          ------------------------------------------------------------------------------------
+ 181           * I/P Arguments: 8-bit command supported by LCD.
+ 182           * Return value : none
+ 183          
+ 184           * description  :This function sends a command to LCD in the following steps.
+ 185               steP0: Send the Higher Nibble of the I/P command to LCD.
+ 186               step2: Select the Control Register by making RS low.
+ 187               step3: Select Write operation making RW low.
+ 188             step4: Send a High-to-Low pulse on Enable PIN with some delay_us.
+ 189          
+ 190             step5: Send the Lower Nibble of the I/P command to LCD.
+ 191             step6: Select the Control Register by making RS low.
+ 192             step7: Select Write operation making RW low.
+ 193             step8: Send a High-to-Low pulse on Enable PIN with some delay_us.
+ 194          ----------------------------------------------------------------------------------*/
+ 195          void LCD_CmdWrite( char cmd)
+ 196          {
+ 197   1      
+ 198   1         databus=(cmd & 0xf0);        // Send the Higher Nibble of the command to LCD
+ 199   1           rs=0;            // Select the Command Register by pulling RS LOW
+ 200   1           rw=0;            // Select the Write Operation  by pulling RW LOW
+ 201   1         LCD_EnablePulse();
+ 202   1      
+ 203   1         delay_us(500);         // wait for some time
+ 204   1      
+ 205   1         databus=((cmd<<4) & 0xf0);   // Send the Lower Nibble of the command to LCD
+ 206   1           rs=0;            // Select the Command Register by pulling RS LOW
+ 207   1           rw=0;            // Select the Write Operation  by pulling RW LOW
+ 208   1          LCD_EnablePulse();
+ 209   1      
+ 210   1         delay_us(500);
+ 211   1      }
+ 212          
+ 213          
+ 214          
+ 215          
+ 216          
+ 217          
+ 218          
+ 219          
+ 220          /*---------------------------------------------------------------------------------
+ 221                                 void LCD_DataWrite( char dat)
+ 222           ----------------------------------------------------------------------------------
+ 223           * Function name: LCD_DataWrite()
+ 224           * I/P Arguments: ASCII value of the char to be displayed.
+ 225           * Return value : none
+ 226          
+ 227           * description  :
+ 228              This function sends a character to be displayed on LCD in the following steps.
+ 229                 steP0: Send the higher nibble of the character to LCD.
+ 230                 step2: Select the Data Register by making RS high.
+ 231                 step3: Select Write operation making RW low.
+ 232               step4: Send a High-to-Low pulse on Enable PIN with some delay_us.
+ 233          
+ 234                 step5: wait for some time
+ 235          
+ 236                 step6: Send the lower nibble of the character to LCD.
+ 237               step7: Select the Data Register by making RS high.
+ 238               step8: Select Write operation making RW low.
+ 239               step9: Send a High-to-Low pulse on Enable PIN with some delay_us.
+ 240          ----------------------------------------------------------------------------------*/
+C51 COMPILER V9.54   LCD_4_BIT                                                             12/20/2015 20:35:44 PAGE 5   
+
+ 241          void LCD_DataWrite( char dat)
+ 242          {
+ 243   1      
+ 244   1      
+ 245   1         databus=(dat & 0xf0);      // Send the Higher Nibble of the Data to LCD
+ 246   1           rs=1;            // Select the Data Register by pulling RS HIGH
+ 247   1           rw=0;            // Select the Write Operation  by pulling RW LOW
+ 248   1          LCD_EnablePulse();
+ 249   1      
+ 250   1         delay_us(500);             // wait for some time.
+ 251   1      
+ 252   1         databus=((dat <<4) & 0xf0);  // Send the Lower Nibble of the Data to LCD
+ 253   1           rs=1;            // Select the Data Register by pulling RS HIGH
+ 254   1           rw=0;            // Select the Write Operation  by pulling RW LOW
+ 255   1          LCD_EnablePulse();
+ 256   1          delay_us(500);
+ 257   1      }
+ 258          
+ 259          
+ 260          
+ 261          
+ 262          
+ 263          
+ 264          /*---------------------------------------------------------------------------------
+ 265                                 void LCD_DisplayString(char *string_ptr)
+ 266           ----------------------------------------------------------------------------------
+ 267           * Function name:  lcd_display_string()
+ 268           * I/P Arguments: String(Address of the string) to be displayed.
+ 269           * Return value : none
+ 270          
+ 271           * description  :
+ 272                         This function is used to display the ASCII string on the lcd.
+ 273                           1.The string_ptr points to the first char of the string
+ 274                              and traverses till the end(NULL CHAR).
+ 275                           2.Each time a char is sent to lcd_dat funtion to display.
+ 276          -----------------------------------------------------------------------------------*/
+ 277          void LCD_DisplayString(char *string_ptr)
+ 278          {
+ 279   1         while(*string_ptr)
+ 280   1          LCD_DataWrite(*string_ptr++);
+ 281   1        }
+ 282          
+ 283          /*---------------------------------------------------------------------------------
+ 284                            LCD_DisplayRtcTime(char hour,char min,char sec)
+ 285           ----------------------------------------------------------------------------------
+ 286           * I/P Arguments: char hour,char min,char sec
+ 287                       hour,min,sec should be packed BCD format, as read from DS1307
+ 288          
+ 289           * Return value : none
+ 290          
+ 291           * description  :This function display hour,min,sec read from DS1307.
+ 292          
+ 293             ___________ Display the higher nibble of hour after adding 0x30(ASCII conversion)
+ 294            |            Display the lower nibble of hour after adding 0x30(ASCII conversion)
+ 295            |
+ 296            |   ________ Display the higher nibble of min after adding 0x30(ASCII conversion)
+ 297            |  |         Display the lower nibble of min after adding 0x30(ASCII conversion)
+ 298            |  |
+ 299            |  |   _____ Display the higher nibble of sec after adding 0x30(ASCII conversion)
+ 300            |  |  |      Display the lower nibble of sec after adding 0x30(ASCII conversion)
+ 301            |  |  |
+ 302            10;40;07
+C51 COMPILER V9.54   LCD_4_BIT                                                             12/20/2015 20:35:44 PAGE 6   
+
+ 303          
+ 304          -----------------------------------------------------------------------------------*/
+ 305          void LCD_DisplayRtcTime(char hour,char min,char sec)
+ 306          {
+ 307   1          LCD_DataWrite(((hour>>4) & 0x0f) + 0x30);
+ 308   1          LCD_DataWrite((hour & 0x0f) + 0x30);
+ 309   1          LCD_DataWrite(':');
+ 310   1      
+ 311   1          LCD_DataWrite(((min>>4) & 0x0f) + 0x30);
+ 312   1        LCD_DataWrite((min & 0x0f) + 0x30);
+ 313   1          LCD_DataWrite(':');
+ 314   1      
+ 315   1          LCD_DataWrite(((sec>>4) & 0x0f) + 0x30);
+ 316   1        LCD_DataWrite((sec & 0x0f) + 0x30);
+ 317   1      
+ 318   1       }
+ 319          /*Actual library consisted of many functions. Truncated to save flash space for AT89S51 microcontroller*/
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    306    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----       8
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

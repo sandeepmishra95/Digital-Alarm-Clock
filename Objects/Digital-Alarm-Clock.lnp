@@ -1,0 +1,6 @@
+".\Objects\STARTUP.obj",
+".\Objects\delay.obj",
+".\Objects\lcd_4_bit.obj",
+".\Objects\main.obj" 
+TO ".\Objects\Digital-Alarm-Clock" 
+PRINT(".\Listings\Digital-Alarm-Clock.m51")
