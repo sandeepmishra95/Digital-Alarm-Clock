@@ -1,5 +1,6 @@
 # Digital-Alarm-Clock
-LCD based digital Alarm Clock using AT89S51(8051) microcontroller
+
+#This is a LCD based digital Alarm Clock using AT89S51(8051) microcontroller
 
 The basic schematic is added. The clock has 2 push button interfaces. Size of hex code is 3.93 KB just above 4.0 KB. 
 Possible scope of improvement
